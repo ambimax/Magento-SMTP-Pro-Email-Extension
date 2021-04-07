@@ -1,5 +1,5 @@
 <?php
-
+// @codingStandardsIgnoreFile
 /**
  * Zend_Http_Client extended for a function to sign a request for AmazonSES with signature version 4.
  *
@@ -222,8 +222,8 @@ class App_Mail_Transport_AmazonSES extends Zend_Mail_Transport_Abstract
         $this->_accessKey = $config['accessKey'];
         $this->_privateKey = $config['privateKey'];
         $regionKey = array_search($region, $this->endpoints);
-        if (!isset($regionKey)) {
-            throw new InvalidArgumentException('Regionkey unrecognised');
+        if (!$regionKey) {
+            throw new InvalidArgumentException('Invalid Regionkey');
         }
         $this->_region = $regionKey;
         $this->setRegion($region);
