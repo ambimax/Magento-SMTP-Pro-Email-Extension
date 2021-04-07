@@ -1,5 +1,6 @@
 <?php
 // @codingStandardsIgnoreFile
+
 /**
  * Zend_Http_Client extended for a function to sign a request for AmazonSES with signature version 4.
  *
@@ -43,10 +44,10 @@ class Zend_Http_Client_AmazonSES_SV4 extends Zend_Http_Client
         // 2. Add the canonical URI parameter, followed by a newline character
         $canonicalUri = $this->pathEncode($this->uri->getPath()) . "\n";
 
-        // 3. Add the canonical query string, followed by a newline character. 
+        // 3. Add the canonical query string, followed by a newline character.
         $canonicalQuery = $this->getQuery() . "\n";
 
-        // 4. Add the canonical headers, followed by a newline character. 
+        // 4. Add the canonical headers, followed by a newline character.
         $canonicalHeaders = "";
         $headers = $this->headers;
         ksort($headers, SORT_STRING);
@@ -58,7 +59,7 @@ class Zend_Http_Client_AmazonSES_SV4 extends Zend_Http_Client
         // 5. Add the signed headers, followed by a newline character.
         $signedHeaders = implode(';', array_keys($headers)) . "\n";
 
-        // 6. Use a hash (digest) function like SHA256 to create a hashed value from the payload in the body of the HTTP or HTTPS request. 
+        // 6. Use a hash (digest) function like SHA256 to create a hashed value from the payload in the body of the HTTP or HTTPS request.
         $hashedPayload = $this->hash($this->_prepareBody());
 
         // 7. To construct the finished canonical request, combine all the components from each step as a single string.
@@ -70,24 +71,24 @@ class Zend_Http_Client_AmazonSES_SV4 extends Zend_Http_Client
         // 8. Create a digest (hash) of the canonical request with the same algorithm that you used to hash the payload.
         $hashedCanonicalRequest = $this->hash($canonicalRequest);
 
-        // Task 2: 
+        // Task 2:
         // 1. Start with the algorithm designation, followed by a newline character.
         $algorithm = self::$SESAlgorithms[self::HASH_ALGORITHM] . "\n";
 
         // 2. Append the request date value, followed by a newline character.
         $requestDateTime = $longDate . "\n";
 
-        // 3. Append the credential scope value, followed by a newline character. 
+        // 3. Append the credential scope value, followed by a newline character.
         $credentialScope = $shortDate . '/' . $region . '/' . $service . '/aws4_request' . "\n";
 
-        // 4. Append the hash of the canonical request that you created in Task 1: Create a canonical request for Signature Version 4. 
+        // 4. Append the hash of the canonical request that you created in Task 1: Create a canonical request for Signature Version 4.
         $stringToSign = $algorithm . $requestDateTime . $credentialScope . $hashedCanonicalRequest;
 
         //Mage::log('stringToSign:');
         //Mage::log("#####\n" . $stringToSign . "\n#####");
 
         // Task 3: Calculate the signature for AWS Signature Version 4
-        // 1. Derive your signing key. 
+        // 1. Derive your signing key.
         $dateKey = hash_hmac(self::HASH_ALGORITHM, $shortDate, 'AWS4' . $privateKey, true);
         $regionKey = hash_hmac(self::HASH_ALGORITHM, $region, $dateKey, true);
         $serviceKey = hash_hmac(self::HASH_ALGORITHM, $service, $regionKey, true);
@@ -235,116 +236,112 @@ class App_Mail_Transport_AmazonSES extends Zend_Mail_Transport_Abstract
             throw new InvalidArgumentException('Region unrecognised');
         }
         return $this->_host = Zend_Uri::factory($region);
+    }
 
-
-        /**
-         * Send an email using the amazon webservice api
-         *
-         * @return void
-         */
-        public
-        function _sendMail()
-        {
-            //Build the parameters
-            $params = array(
-                'Action' => 'SendRawEmail',
-                'Source' => $this->_mail->getFrom(),
-                'RawMessage.Data' => base64_encode(sprintf("%s\n%s\n", $this->header, $this->body))
-            );
-            $recipients = explode(',', $this->recipients);
-            while (list($index, $recipient) = each($recipients)) {
-                $params[sprintf('Destinations.member.%d', $index + 1)] = $recipient;
-            }
-
-            // Create client
-            $client = new Zend_Http_Client_AmazonSES_SV4($this->_host);
-            $client->setMethod(Zend_Http_Client::POST);
-            $client->setParameterPost($params);
-
-            // Add authorization header
-            $client->setHeaders(array(
-                'Authorization' => $client->buildAuthKey(new DateTime('NOW'), strtolower($this->_region), 'email', $this->_accessKey, $this->_privateKey)
-            ));
-
-            // Send request
-            $response = $client->request(Zend_Http_Client::POST);
-
-            if ($response->getStatus() != 200) {
-                throw new Exception($response->getBody());
-            }
+    /**
+     * Send an email using the amazon webservice api
+     *
+     * @return void
+     */
+    public function _sendMail()
+    {
+        //Build the parameters
+        $params = array(
+            'Action' => 'SendRawEmail',
+            'Source' => $this->_mail->getFrom(),
+            'RawMessage.Data' => base64_encode(sprintf("%s\n%s\n", $this->header, $this->body))
+        );
+        $recipients = explode(',', $this->recipients);
+        while (list($index, $recipient) = each($recipients)) {
+            $params[sprintf('Destinations.member.%d', $index + 1)] = $recipient;
         }
 
-        public
-        function getSendStats()
-        {
-            //Build the parameters
-            $params = array(
-                'Action' => 'GetSendStatistics'
-            );
+        // Create client
+        $client = new Zend_Http_Client_AmazonSES_SV4($this->_host);
+        $client->setMethod(Zend_Http_Client::POST);
+        $client->setParameterPost($params);
 
-            // Create client
-            $client = new Zend_Http_Client_AmazonSES_SV4($this->_host);
-            $client->setMethod(Zend_Http_Client::POST);
-            $client->setParameterPost($params);
+        // Add authorization header
+        $client->setHeaders(array(
+            'Authorization' => $client->buildAuthKey(new DateTime('NOW'), strtolower($this->_region), 'email', $this->_accessKey, $this->_privateKey)
+        ));
 
-            // hhvm Invalid chunk size fix - force HTTP 1.0
-            $client->setConfig(array(
-                'httpversion' => Zend_Http_Client::HTTP_0,
-            ));
-            // -----
+        // Send request
+        $response = $client->request(Zend_Http_Client::POST);
 
-            // Add authorization header
-            $client->setHeaders(array(
-                'Authorization' => $client->buildAuthKey(new DateTime('NOW'), strtolower($this->_region), 'email', $this->_accessKey, $this->_privateKey)
-            ));
-
-            // Send request
-            $response = $client->request(Zend_Http_Client::POST);
-
-            if ($response->getStatus() != 200) {
-                throw new Exception($response->getBody());
-            }
-
-            return $response->getBody();
-        }
-
-
-        /**
-         * Format and fix headers
-         *
-         * Some SMTP servers do not strip BCC headers. Most clients do it themselves as do we.
-         *
-         * @access  protected
-         * @param array $headers
-         * @return  void
-         * @throws  Zend_Transport_Exception
-         */
-        protected
-        function _prepareHeaders($headers)
-        {
-            if (!$this->_mail) {
-                /**
-                 * @see Zend_Mail_Transport_Exception
-                 */
-                throw new Zend_Mail_Transport_Exception('_prepareHeaders requires a registered Zend_Mail object');
-            }
-
-            unset($headers['Bcc']);
-
-            // Prepare headers
-            parent::_prepareHeaders($headers);
-        }
-
-
-        /**
-         * Returns header string containing encoded authentication key
-         *
-         * @param date $date
-         * @return  string
-         */
-        private
-        function _buildAuthKey($date)
-        {
-            return sprintf('AWS3-HTTPS AWSAccessKeyId=%s,Algorithm=HmacSHA256,Signature=%s', $this->_accessKey, base64_encode(hash_hmac('sha256', $date, $this->_privateKey, TRUE)));
+        if ($response->getStatus() != 200) {
+            throw new Exception($response->getBody());
         }
     }
+
+    public function getSendStats()
+    {
+        //Build the parameters
+        $params = array(
+            'Action' => 'GetSendStatistics'
+        );
+
+        // Create client
+        $client = new Zend_Http_Client_AmazonSES_SV4($this->_host);
+        $client->setMethod(Zend_Http_Client::POST);
+        $client->setParameterPost($params);
+
+        // hhvm Invalid chunk size fix - force HTTP 1.0
+        $client->setConfig(array(
+            'httpversion' => Zend_Http_Client::HTTP_0,
+        ));
+        // -----
+
+        // Add authorization header
+        $client->setHeaders(array(
+            'Authorization' => $client->buildAuthKey(new DateTime('NOW'), strtolower($this->_region), 'email', $this->_accessKey, $this->_privateKey)
+        ));
+
+        // Send request
+        $response = $client->request(Zend_Http_Client::POST);
+
+        if ($response->getStatus() != 200) {
+            throw new Exception($response->getBody());
+        }
+
+        return $response->getBody();
+    }
+
+
+    /**
+     * Format and fix headers
+     *
+     * Some SMTP servers do not strip BCC headers. Most clients do it themselves as do we.
+     *
+     * @access  protected
+     * @param array $headers
+     * @return  void
+     * @throws  Zend_Transport_Exception
+     */
+    protected function _prepareHeaders($headers)
+    {
+        if (!$this->_mail) {
+            /**
+             * @see Zend_Mail_Transport_Exception
+             */
+            throw new Zend_Mail_Transport_Exception('_prepareHeaders requires a registered Zend_Mail object');
+        }
+
+        unset($headers['Bcc']);
+
+        // Prepare headers
+        parent::_prepareHeaders($headers);
+    }
+
+
+    /**
+     * Returns header string containing encoded authentication key
+     *
+     * @param date $date
+     * @return  string
+     */
+    private function _buildAuthKey($date)
+    {
+        return sprintf('AWS3-HTTPS AWSAccessKeyId=%s,Algorithm=HmacSHA256,Signature=%s', $this->_accessKey, base64_encode(hash_hmac('sha256', $date, $this->_privateKey, TRUE)));
+    }
+}
