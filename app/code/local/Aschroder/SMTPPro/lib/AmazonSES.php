@@ -187,10 +187,10 @@ class App_Mail_Transport_AmazonSES extends Zend_Mail_Transport_Abstract
     protected $_region;
 
     private $endpoints = array(
-        'US-EAST-1' => 'email.us-east-1.amazonaws.com',
-        'US-WEST-2' => 'email.us-west-2.amazonaws.com',
-        'EU-WEST-1' => 'email.eu-west-1.amazonaws.com',
-        'EU-CENTRAL-1' => 'email.eu-central-1.amazonaws.com',
+        'US-EAST-1' => 'https//email.us-east-1.amazonaws.com',
+        'US-WEST-2' => 'https//email.us-west-2.amazonaws.com',
+        'EU-WEST-1' => 'https//email.eu-west-1.amazonaws.com',
+        'EU-CENTRAL-1' => 'https//email.eu-central-1.amazonaws.com',
     );
 
 
@@ -203,7 +203,7 @@ class App_Mail_Transport_AmazonSES extends Zend_Mail_Transport_Abstract
      * @throws Zend_Mail_Transport_Exception if accessKey is not present in the config
      * @throws Zend_Mail_Transport_Exception if privateKey is not present in the config
      */
-    public function __construct(Array $config = array(), $region = 'US-EAST-1')
+    public function __construct(Array $config = array(), $region = 'https//email.us-east-1.amazonaws.com')
     {
         if(!array_key_exists('accessKey', $config)){
             throw new Zend_Mail_Transport_Exception('This transport requires the Amazon access key');
@@ -215,16 +215,20 @@ class App_Mail_Transport_AmazonSES extends Zend_Mail_Transport_Abstract
         
         $this->_accessKey = $config['accessKey'];
         $this->_privateKey = $config['privateKey'];
-				$this->_region = $region;
+	$regionKey=array_search($region,$this->endpoints);
+        if(!isset($regionKey)) {
+            throw new InvalidArgumentException('Regionkey unrecognised');
+        }
+        $this->_region = $regionKey;
         $this->setRegion($region);
     }
 
     public function setRegion($region) {
-        if(!isset($this->endpoints[$region])) {
+        if(!isset($region)) {
             throw new InvalidArgumentException('Region unrecognised');
         }
-        return $this->_host = Zend_Uri::factory("https://" . $this->endpoints[$region]);
-    }
+        return $this->_host = Zend_Uri::factory($region);
+    
 
     /**
      * Send an email using the amazon webservice api
